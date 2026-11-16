@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Пианино с Нотным Станом</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      background-color: #16161c;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #fff;
+      user-select: none;
+    }
+    h2 {
+      margin: 0 0 16px 0;
+      font-size: 20px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .controls {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      background: #23232e;
+      padding: 12px 22px;
+      border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+    }
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+    }
+    select {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #3c3c4e;
+      background: #323242;
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    input[type="range"] { cursor: pointer; }
+    .piano-wrapper {
+      max-width: 100%;
+      overflow-x: auto;
+      padding: 18px;
+      background: #0d0d11;
+      border-radius: 16px;
+      box-shadow: 0 16px 45px rgba(0, 0, 0, 0.8);
+      border: 1px solid #2b2b38;
+    }
+    .piano {
+      position: relative;
+      display: flex;
+      width: max-content;
+    }
+    .key {
+      position: relative;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+      padding-bottom: 10px;
+      transition: transform 0.04s, background 0.04s;
+    }
+    .key.white {
+      width: 54px;
+      height: 270px;
+      background: linear-gradient(to bottom, #ffffff 0%, #f4f4f7 86%, #dcdce2 100%);
+      border: 1px solid #b8b8c2;
+      border-radius: 0 0 7px 7px;
+      color: #1f1f26;
+      z-index: 1;
+      margin: 0 1px;
+    }
+    .key.white:active, .key.white.active {
+      background: linear-gradient(to bottom, #e4e4ec 0%, #c8c8d4 100%);
+      transform: translateY(3px);
+    }
+    .key.black {
+      width: 36px;
+      height: 168px;
+      background: linear-gradient(to bottom, #3a3a46 0%, #15151a 88%, #000000 100%);
+      border-radius: 0 0 6px 6px;
+      color: #f0f0f5;
+      z-index: 2;
+      margin-left: -18px;
+      margin-right: -18px;
+      box-shadow: 2px 4px 8px rgba(0, 0, 0, 0.7);
+      border: 1px solid #000;
+    }
+    .key.black:active, .key.black.active {
+      background: linear-gradient(to bottom, #24242c 0%, #0a0a0d 100%);
+      transform: translateY(3px);
+    }
+    .staff-box {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      margin-bottom: 6px;
+      pointer-events: none;
+    }
+    .note-name {
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+    .key.black .note-name {
+      font-size: 11px;
+      color: #d4d4dc;
+    }
+    .kbd-hint {
+      font-size: 11px;
+      font-weight: 600;
+      margin-top: 4px;
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.08);
+      white-space: nowrap;
+    }
+    .key.black .kbd-hint {
+      background: rgba(255, 255, 255, 0.16);
+      color: #fff;
+    }
+    .legend {
+      margin-top: 18px;
+      font-size: 13px;
+      color: #a6a6b5;
+      text-align: center;
+      line-height: 1.7;
+      background: #1e1e26;
+      padding: 12px 22px;
+      border-radius: 10px;
+      border: 1px solid #2c2c38;
+    }
+    .legend code {
+      background: #2e2e3a;
+      color: #ffd166;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    .legend .white-code {
+      background: #e6e6ee;
+      color: #18181f;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>🎹 Пианино с Нотным Станом — Раздельные Ряды (3 Октавы)</h2>
+
+  <div class="controls">
+    <div class="control-group">
+      <label for="waveType">Тембр звука:</label>
+      <select id="waveType">
+        <option value="triangle" selected>Мягкое пианино (Triangle)</option>
+        <option value="sine">Чистый тон (Sine)</option>
+        <option value="sawtooth">Синтезатор (Sawtooth)</option>
+        <option value="square">Ретро 8-бит (Square)</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label for="sustain">Длина звука (сустейн):</label>
+      <input type="range" id="sustain" min="0.4" max="3.0" step="0.2" value="1.5">
+    </div>
+  </div>
+
+  <div class="piano-wrapper">
+    <div class="piano" id="piano"></div>
+  </div>
+
+  <div class="legend">
+    <strong>Нижняя октава (Басовый ключ):</strong>
+    Белые — ряд <code class="white-code">Z X C V B N M / Я Ч С М И Т Ь</code> ,
+    Чёрные — ряд <code>S D G H J / Ы В П Р О</code><br>
+    <strong>Верхние две октавы (Скрипичный ключ):</strong>
+    Белые — ряд <code class="white-code">Q W E R T Y U I O P [ ] \ / Й Ц У К Е Н Г Ш Щ З Х Ъ</code> ,
+    Чёрные — ряд <code>2 3 5 6 7 9 0 = ⌫</code>
+  </div>
+
+  <script>
+    var AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+    var audioCtx = null;
+
+    var notesData = [
+      { label: 'До',    freq: 130.81, type: 'white', code: 'KeyZ',         keys: ['z', 'я'], hint: 'Z/Я', step: -7, sharp: false, clef: 'bass' },
+      { label: 'До#',   freq: 138.59, type: 'black', code: 'KeyS',         keys: ['s', 'ы'], hint: 'S/Ы', step: -7, sharp: true,  clef: 'bass' },
+      { label: 'Ре',    freq: 146.83, type: 'white', code: 'KeyX',         keys: ['x', 'ч'], hint: 'X/Ч', step: -6, sharp: false, clef: 'bass' },
+      { label: 'Ре#',   freq: 155.56, type: 'black', code: 'KeyD',         keys: ['d', 'в'], hint: 'D/В', step: -6, sharp: true,  clef: 'bass' },
+      { label: 'Ми',    freq: 164.81, type: 'white', code: 'KeyC',         keys: ['c', 'с'], hint: 'C/С', step: -5, sharp: false, clef: 'bass' },
+      { label: 'Фа',    freq: 174.61, type: 'white', code: 'KeyV',         keys: ['v', 'м'], hint: 'V/М', step: -4, sharp: false, clef: 'bass' },
+      { label: 'Фа#',   freq: 185.00, type: 'black', code: 'KeyG',         keys: ['g', 'п'], hint: 'G/П', step: -4, sharp: true,  clef: 'bass' },
+      { label: 'Соль',  freq: 196.00, type: 'white', code: 'KeyB',         keys: ['b', 'и'], hint: 'B/И', step: -3, sharp: false, clef: 'bass' },
+      { label: 'Соль#', freq: 207.65, type: 'black', code: 'KeyH',         keys: ['h', 'р'], hint: 'H/Р', step: -3, sharp: true,  clef: 'bass' },
+      { label: 'Ля',    freq: 220.00, type: 'white', code: 'KeyN',         keys: ['n', 'т'], hint: 'N/Т', step: -2, sharp: false, clef: 'bass' },
+      { label: 'Ля#',   freq: 233.08, type: 'black', code: 'KeyJ',         keys: ['j', 'о'], hint: 'J/О', step: -2, sharp: true,  clef: 'bass' },
+      { label: 'Си',    freq: 246.94, type: 'white', code: 'KeyM',         keys: ['m', 'ь'], hint: 'M/Ь', step: -1, sharp: false, clef: 'bass' },
+
+      { label: 'До',    freq: 261.63, type: 'white', code: 'KeyQ',         keys: ['q', 'й'], hint: 'Q/Й', step: 0,  sharp: false, clef: 'treble' },
+      { label: 'До#',   freq: 277.18, type: 'black', code: 'Digit2',       keys: ['2'],      hint: '2',   step: 0,  sharp: true,  clef: 'treble' },
+      { label: 'Ре',    freq: 293.66, type: 'white', code: 'KeyW',         keys: ['w', 'ц'], hint: 'W/Ц', step: 1,  sharp: false, clef: 'treble' },
+      { label: 'Ре#',   freq: 311.13, type: 'black', code: 'Digit3',       keys: ['3'],      hint: '3',   step: 1,  sharp: true,  clef: 'treble' },
+      { label: 'Ми',    freq: 329.63, type: 'white', code: 'KeyE',         keys: ['e', 'у'], hint: 'E/У', step: 2,  sharp: false, clef: 'treble' },
+      { label: 'Фа',    freq: 349.23, type: 'white', code: 'KeyR',         keys: ['r', 'к'], hint: 'R/К', step: 3,  sharp: false, clef: 'treble' },
+      { label: 'Фа#',   freq: 369.99, type: 'black', code: 'Digit5',       keys: ['5'],      hint: '5',   step: 3,  sharp: true,  clef: 'treble' },
+      { label: 'Соль',  freq: 392.00, type: 'white', code: 'KeyT',         keys: ['t', 'е'], hint: 'T/Е', step: 4,  sharp: false, clef: 'treble' },
+      { label: 'Соль#', freq: 415.30, type: 'black', code: 'Digit6',       keys: ['6'],      hint: '6',   step: 4,  sharp: true,  clef: 'treble' },
+      { label: 'Ля',    freq: 440.00, type: 'white', code: 'KeyY',         keys: ['y', 'н'], hint: 'Y/Н', step: 5,  sharp: false, clef: 'treble' },
+      { label: 'Ля#',   freq: 466.16, type: 'black', code: 'Digit7',       keys: ['7'],      hint: '7',   step: 5,  sharp: true,  clef: 'treble' },
+      { label: 'Си',    freq: 493.88, type: 'white', code: 'KeyU',         keys: ['u', 'г'], hint: 'U/Г', step: 6,  sharp: false, clef: 'treble' },
+
+      { label: 'До',    freq: 523.25, type: 'white', code: 'KeyI',         keys: ['i', 'ш'], hint: 'I/Ш', step: 7,  sharp: false, clef: 'treble' },
+      { label: 'До#',   freq: 554.37, type: 'black', code: 'Digit9',       keys: ['9'],      hint: '9',   step: 7,  sharp: true,  clef: 'treble' },
+      { label: 'Ре',    freq: 587.33, type: 'white', code: 'KeyO',         keys: ['o', 'щ'], hint: 'O/Щ', step: 8,  sharp: false, clef: 'treble' },
+      { label: 'Ре#',   freq: 622.25, type: 'black', code: 'Digit0',       keys: ['0'],      hint: '0',   step: 8,  sharp: true,  clef: 'treble' },
+      { label: 'Ми',    freq: 659.25, type: 'white', code: 'KeyP',         keys: ['p', 'з'], hint: 'P/З', step: 9,  sharp: false, clef: 'treble' },
+      { label: 'Фа',    freq: 698.46, type: 'white', code: 'BracketLeft',  keys: ['[', 'х'], hint: '[/Х', step: 10, sharp: false, clef: 'treble' },
+      { label: 'Фа#',   freq: 739.99, type: 'black', code: 'Equal',        keys: ['='],      hint: '=',   step: 10, sharp: true,  clef: 'treble' },
+      { label: 'Соль',  freq: 783.99, type: 'white', code: 'BracketRight', keys: [']', 'ъ'], hint: ']/Ъ', step: 11, sharp: false, clef: 'treble' },
+      { label: 'Соль#', freq: 830.61, type: 'black', code: 'Backspace',    keys: ['backspace'], hint: '⌫', step: 11, sharp: true, clef: 'treble' },
+      { label: 'Ля',    freq: 880.00, type: 'white', code: 'Backslash',    keys: ['\\'],   hint: '\\', step: 12, sharp: false, clef: 'treble' }
+    ];
+
+    function createStaffSVG(step, sharp, clef, isBlackKey) {
+      var strokeColor = isBlackKey ? '#c8c8d4' : '#262630';
+      var noteColor = isBlackKey ? '#ffd166' : '#d90429';
+      var lineSpacing = 6;
+      var halfStep = 3;
+      var bottomLineY = 48;
+      var noteY = bottomLineY;
+      var ledgerLines = [];
+
+      if (clef === 'treble') {
+        noteY = bottomLineY - (step - 2) * halfStep;
+        if (step <= 0) ledgerLines.push(bottomLineY + lineSpacing);
+        if (step >= 12) ledgerLines.push(bottomLineY - lineSpacing * 5);
+      } else {
+        noteY = bottomLineY - (step - (-10)) * halfStep;
+        if (step >= 0) ledgerLines.push(bottomLineY - lineSpacing * 5);
+      }
+
+      var linesSvg = '';
+      for (var i = 0; i < 5; i++) {
+        var y = bottomLineY - i * lineSpacing;
+        linesSvg += '<line x1="3" y1="' + y + '" x2="39" y2="' + y + '" stroke="' + strokeColor + '" stroke-width="0.9" opacity="0.65" />';
+      }
+
+      var ledgersSvg = '';
+      for (var j = 0; j < ledgerLines.length; j++) {
+        var ly = ledgerLines[j];
+        ledgersSvg += '<line x1="18" y1="' + ly + '" x2="33" y2="' + ly + '" stroke="' + strokeColor + '" stroke-width="1.1" />';
+      }
+
+      var clefSvg = '';
+      if (clef === 'treble') {
+        clefSvg = '<path d="M 10 47 C 13 47 14 43 11 41 C 8 39 6 43 9 46 C 12 49 16 45 14 38 L 10 21 C 9 18 12 17 13 20 C 14 23 10 28 8 33 C 6 38 9 43 13 42 C 16 41 16 37 13 36 C 10 35 9 38 11 40" fill="none" stroke="' + strokeColor + '" stroke-width="1.3" stroke-linecap="round"/>';
+      } else {
+        clefSvg = '<path d="M 7 31 C 7 26 14 26 14 32 C 14 38 9 42 6 45" fill="none" stroke="' + strokeColor + '" stroke-width="1.5" stroke-linecap="round"/><circle cx="7" cy="31" r="1.4" fill="' + strokeColor + '"/><circle cx="16.5" cy="28" r="1.1" fill="' + strokeColor + '"/><circle cx="16.5" cy="34" r="1.1" fill="' + strokeColor + '"/>';
+      }
+
+      var sharpSvg = '';
+      if (sharp) {
+        sharpSvg = '<g stroke="' + noteColor + '" stroke-width="1.1"><line x1="17" y1="' + (noteY - 5) + '" x2="17" y2="' + (noteY + 5) + '"/><line x1="19.5" y1="' + (noteY - 6) + '" x2="19.5" y2="' + (noteY + 4) + '"/><line x1="15.5" y1="' + (noteY - 2) + '" x2="21" y2="' + (noteY - 3.5) + '"/><line x1="15.5" y1="' + (noteY + 2) + '" x2="21" y2="' + (noteY + 0.5) + '"/></g>';
+      }
+
+      var stemUp = (clef === 'treble' && step < 6) || (clef === 'bass' && step < -6);
+      var stemSvg = stemUp
+        ? '<line x1="28.5" y1="' + noteY + '" x2="28.5" y2="' + (noteY - 15) + '" stroke="' + noteColor + '" stroke-width="1.3" />'
+        : '<line x1="22.5" y1="' + noteY + '" x2="22.5" y2="' + (noteY + 15) + '" stroke="' + noteColor + '" stroke-width="1.3" />';
+
+      return '<svg width="42" height="66" viewBox="0 0 42 66">' +
+        linesSvg + clefSvg + ledgersSvg + sharpSvg +
+        '<ellipse cx="25.5" cy="' + noteY + '" rx="3.6" ry="2.6" transform="rotate(-15 25.5 ' + noteY + ')" fill="' + noteColor + '" />' +
+        stemSvg +
+        '</svg>';
+    }
+
+    var pianoEl = document.getElementById('piano');
+    var waveSelect = document.getElementById('waveType');
+    var sustainInput = document.getElementById('sustain');
+    var codeMap = {};
+    var keyCharMap = {};
+
+    for (var i = 0; i < notesData.length; i++) {
+      (function(item) {
+        var keyDiv = document.createElement('div');
+        keyDiv.className = 'key ' + item.type;
+
+        var staffSvg = createStaffSVG(item.step, item.sharp, item.clef, item.type === 'black');
+
+        keyDiv.innerHTML =
+          '<div class="staff-box">' + staffSvg + '</div>' +
+          '<span class="note-name">' + item.label + '</span>' +
+          '<span class="kbd-hint">' + item.hint + '</span>';
+
+        var triggerPlay = function(e) {
+          e.preventDefault();
+          playNote(item.freq, keyDiv);
+        };
+
+        keyDiv.addEventListener('mousedown', triggerPlay);
+        keyDiv.addEventListener('touchstart', triggerPlay);
+
+        pianoEl.appendChild(keyDiv);
+
+        var entry = { element: keyDiv, freq: item.freq };
+        codeMap[item.code] = entry;
+        for (var k = 0; k < item.keys.length; k++) {
+          keyCharMap[item.keys[k]] = entry;
+        }
+      })(notesData[i]);
+    }
+
+    function playNote(freq, element) {
+      if (!audioCtx && AudioCtxClass) {
+        audioCtx = new AudioCtxClass();
+      }
+      if (!audioCtx) return;
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      var now = audioCtx.currentTime;
+      var duration = parseFloat(sustainInput.value);
+
+      var osc = audioCtx.createOscillator();
+      var gainNode = audioCtx.createGain();
+
+      osc.type = waveSelect.value;
+      osc.frequency.setValueAtTime(freq, now);
+
+      gainNode.gain.setValueAtTime(0.01, now);
+      gainNode.gain.linearRampToValueAtTime(0.35, now + 0.015);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+      osc.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      osc.start(now);
+      osc.stop(now + duration);
+
+      if (element) {
+        element.classList.add('active');
+        setTimeout(function() {
+          element.classList.remove('active');
+        }, 160);
+      }
+    }
+
+    window.addEventListener('keydown', function(e) {
+      if (e.repeat) return;
+      var target = codeMap[e.code] || keyCharMap[e.key.toLowerCase()];
+      if (target) {
+        e.preventDefault();
+        playNote(target.freq, target.element);
+      }
+    });
+  </script>
+</body>
+</html>
