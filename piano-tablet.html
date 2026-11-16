@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Пианино для Планшета (Мультитач + Нотный стан)</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #16161d;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #fff;
+      touch-action: none;
+    }
+
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      height: 100dvh;
+      width: 100vw;
+      padding: 8px 10px 10px 10px;
+      gap: 8px;
+    }
+
+    /* Верхняя панель управления */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #24242f;
+      padding: 8px 14px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .tool-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      background: #383848;
+      color: #fff;
+      border: 1px solid #4a4a5e;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: background 0.1s, transform 0.05s;
+    }
+
+    .btn:active {
+      background: #52526a;
+      transform: scale(0.96);
+    }
+
+    .btn.active-mode {
+      background: #3b82f6;
+      border-color: #60a5fa;
+    }
+
+    select {
+      background: #383848;
+      color: #fff;
+      border: 1px solid #4a4a5e;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .octave-indicator {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffd166;
+      min-width: 130px;
+      text-align: center;
+    }
+
+    /* Область клавиатуры на весь оставшийся экран */
+    .piano-stage {
+      flex: 1;
+      position: relative;
+      background: #0d0d11;
+      border-radius: 14px;
+      padding: 10px 8px 8px 8px;
+      box-shadow: inset 0 4px 15px rgba(0,0,0,0.8);
+      border: 1px solid #2c2c38;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .piano {
+      position: relative;
+      display: flex;
+      width: 100%;
+      height: 100%;
+    }
+
+    .key {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+      padding-bottom: 10px;
+      transition: transform 0.03s, background 0.03s;
+      touch-action: none;
+    }
+
+    /* Белые клавиши растягиваются равномерно на всю ширину экрана */
+    .key.white {
+      flex: 1;
+      height: 100%;
+      background: linear-gradient(to bottom, #ffffff 0%, #f4f4f7 85%, #dcdce2 100%);
+      border: 1px solid #aaa;
+      border-radius: 0 0 10px 10px;
+      color: #1e1e24;
+      z-index: 1;
+      margin: 0 1.5px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.35);
+    }
+
+    .key.white.active {
+      background: linear-gradient(to bottom, #dbeafe 0%, #93c5fd 100%);
+      transform: translateY(4px);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    }
+
+    /* Чёрные клавиши позиционируются поверх белых */
+    .key.black {
+      position: absolute;
+      top: 0;
+      height: 58%;
+      background: linear-gradient(to bottom, #3a3a45 0%, #16161c 88%, #050507 100%);
+      border: 1px solid #000;
+      border-radius: 0 0 8px 8px;
+      color: #f0f0f5;
+      z-index: 2;
+      box-shadow: 2px 5px 10px rgba(0,0,0,0.7);
+      padding-bottom: 8px;
+    }
+
+    .key.black.active {
+      background: linear-gradient(to bottom, #2563eb 0%, #1d4ed8 100%);
+      transform: translateY(4px);
+      box-shadow: 1px 2px 4px rgba(0,0,0,0.8);
+    }
+
+    .staff-box {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      margin-bottom: 4px;
+      pointer-events: none;
+    }
+
+    .note-name {
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1.1;
+      pointer-events: none;
+    }
+
+    .key.black .note-name {
+      font-size: 11px;
+      color: #ffd166;
+    }
+
+    .octave-tag {
+      font-size: 10px;
+      opacity: 0.55;
+      font-weight: 600;
+      margin-top: 2px;
+      pointer-events: none;
+    }
+
+    /* Подсказка при вертикальной ориентации */
+    .rotate-banner {
+      display: none;
+      background: #ffd166;
+      color: #111;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 6px;
+      border-radius: 8px;
+    }
+
+    @media (orientation: portrait) {
+      .rotate-banner {
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <div class="rotate-banner">
+    💡 Поверните планшет горизонтально — клавиши станут большими и удобными!
+  </div>
+
+  <div class="toolbar">
+    <div class="tool-group">
+      <button class="btn" id="shiftLeft">◀ Ниже</button>
+      <div class="octave-indicator" id="rangeLabel">2 Октавы (До1 – Си2)</div>
+      <button class="btn" id="shiftRight">Выше ▶</button>
+    </div>
+
+    <div class="tool-group">
+      <button class="btn" id="spanToggle">Масштаб: 2 октавы</button>
+      <select id="waveType">
+        <option value="triangle" selected>🎹 Пианино</option>
+        <option value="sine">🔔 Мягкий тон</option>
+        <option value="sawtooth">🎛 Синтезатор</option>
+        <option value="square">👾 8-бит</option>
+      </select>
+      <button class="btn" id="fullscreenBtn">⛶ Весь экран</button>
+    </div>
+  </div>
+
+  <div class="piano-stage">
+    <div class="piano" id="piano"></div>
+  </div>
+</div>
+
+<script>
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  let audioCtx = null;
+
+  function initAudio() {
+    if (!audioCtx) {
+      audioCtx = new AudioContext();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  // Полный банк из 3.5 октав (от До большой октавы C2 до Си второй октавы B5)
+  const allNotes = [
+    // Октава 2 (Большая)
+    { note: 'C2',  label: 'До',   oct: 'Бол.', freq: 65.41,  type: 'white', step: -14, sharp: false, clef: 'bass' },
+    { note: 'C#2', label: 'До#',  oct: '',     freq: 69.30,  type: 'black', step: -14, sharp: true,  clef: 'bass' },
+    { note: 'D2',  label: 'Ре',   oct: 'Бол.', freq: 73.42,  type: 'white', step: -13, sharp: false, clef: 'bass' },
+    { note: 'D#2', label: 'Ре#',  oct: '',     freq: 77.78,  type: 'black', step: -13, sharp: true,  clef: 'bass' },
+    { note: 'E2',  label: 'Ми',   oct: 'Бол.', freq: 82.41,  type: 'white', step: -12, sharp: false, clef: 'bass' },
+    { note: 'F2',  label: 'Фа',   oct: 'Бол.', freq: 87.31,  type: 'white', step: -11, sharp: false, clef: 'bass' },
+    { note: 'F#2', label: 'Фа#',  oct: '',     freq: 92.50,  type: 'black', step: -11, sharp: true,  clef: 'bass' },
+    { note: 'G2',  label: 'Соль', oct: 'Бол.', freq: 98.00,  type: 'white', step: -10, sharp: false, clef: 'bass' },
+    { note: 'G#2', label: 'Соль#',oct: '',     freq: 103.83, type: 'black', step: -10, sharp: true,  clef: 'bass' },
+    { note: 'A2',  label: 'Ля',   oct: 'Бол.', freq: 110.00, type: 'white', step: -9,  sharp: false, clef: 'bass' },
+    { note: 'A#2', label: 'Ля#',  oct: '',     freq: 116.54, type: 'black', step: -9,  sharp: true,  clef: 'bass' },
+    { note: 'B2',  label: 'Си',   oct: 'Бол.', freq: 123.47, type: 'white', step: -8,  sharp: false, clef: 'bass' },
+
+    // Октава 3 (Малая)
+    { note: 'C3',  label: 'До',   oct: 'Мал.', freq: 130.81, type: 'white', step: -7,  sharp: false, clef: 'bass' },
+    { note: 'C#3', label: 'До#',  oct: '',     freq: 138.59, type: 'black', step: -7,  sharp: true,  clef: 'bass' },
+    { note: 'D3',  label: 'Ре',   oct: 'Мал.', freq: 146.83, type: 'white', step: -6,  sharp: false, clef: 'bass' },
+    { note: 'D#3', label: 'Ре#',  oct: '',     freq: 155.56, type: 'black', step: -6,  sharp: true,  clef: 'bass' },
+    { note: 'E3',  label: 'Ми',   oct: 'Мал.', freq: 164.81, type: 'white', step: -5,  sharp: false, clef: 'bass' },
+    { note: 'F3',  label: 'Фа',   oct: 'Мал.', freq: 174.61, type: 'white', step: -4,  sharp: false, clef: 'bass' },
+    { note: 'F#3', label: 'Фа#',  oct: '',     freq: 185.00, type: 'black', step: -4,  sharp: true,  clef: 'bass' },
+    { note: 'G3',  label: 'Соль', oct: 'Мал.', freq: 196.00, type: 'white', step: -3,  sharp: false, clef: 'bass' },
+    { note: 'G#3', label: 'Соль#',oct: '',     freq: 207.65, type: 'black', step: -3,  sharp: true,  clef: 'bass' },
+    { note: 'A3',  label: 'Ля',   oct: 'Мал.', freq: 220.00, type: 'white', step: -2,  sharp: false, clef: 'bass' },
+    { note: 'A#3', label: 'Ля#',  oct: '',     freq: 233.08, type: 'black', step: -2,  sharp: true,  clef: 'bass' },
+    { note: 'B3',  label: 'Си',   oct: 'Мал.', freq: 246.94, type: 'white', step: -1,  sharp: false, clef: 'bass' },
+
+    // Октава 4 (Первая)
+    { note: 'C4',  label: 'До',   oct: '1-я',  freq: 261.63, type: 'white', step: 0,   sharp: false, clef: 'treble' },
+    { note: 'C#4', label: 'До#',  oct: '',     freq: 277.18, type: 'black', step: 0,   sharp: true,  clef: 'treble' },
+    { note: 'D4',  label: 'Ре',   oct: '1-я',  freq: 293.66, type: 'white', step: 1,   sharp: false, clef: 'treble' },
+    { note: 'D#4', label: 'Ре#',  oct: '',     freq: 311.13, type: 'black', step: 1,   sharp: true,  clef: 'treble' },
+    { note: 'E4',  label: 'Ми',   oct: '1-я',  freq: 329.63, type: 'white', step: 2,   sharp: false, clef: 'treble' },
+    { note: 'F4',  label: 'Фа',   oct: '1-я',  freq: 349.23, type: 'white', step: 3,   sharp: false, clef: 'treble' },
+    { note: 'F#4', label: 'Фа#',  oct: '',     freq: 369.99, type: 'black', step: 3,   sharp: true,  clef: 'treble' },
+    { note: 'G4',  label: 'Соль', oct: '1-я',  freq: 392.00, type: 'white', step: 4,   sharp: false, clef: 'treble' },
+    { note: 'G#4', label: 'Соль#',oct: '',     freq: 415.30, type: 'black', step: 4,   sharp: true,  clef: 'treble' },
+    { note: 'A4',  label: 'Ля',   oct: '1-я',  freq: 440.00, type: 'white', step: 5,   sharp: false, clef: 'treble' },
+    { note: 'A#4', label: 'Ля#',  oct: '',     freq: 466.16, type: 'black', step: 5,   sharp: true,  clef: 'treble' },
+    { note: 'B4',  label: 'Си',   oct: '1-я',  freq: 493.88, type: 'white', step: 6,   sharp: false, clef: 'treble' },
+
+    // Октава 5 (Вторая)
+    { note: 'C5',  label: 'До',   oct: '2-я',  freq: 523.25, type: 'white', step: 7,   sharp: false, clef: 'treble' },
+    { note: 'C#5', label: 'До#',  oct: '',     freq: 554.37, type: 'black', step: 7,   sharp: true,  clef: 'treble' },
+    { note: 'D5',  label: 'Ре',   oct: '2-я',  freq: 587.33, type: 'white', step: 8,   sharp: false, clef: 'treble' },
+    { note: 'D#5', label: 'Ре#',  oct: '',     freq: 622.25, type: 'black', step: 8,   sharp: true,  clef: 'treble' },
+    { note: 'E5',  label: 'Ми',   oct: '2-я',  freq: 659.25, type: 'white', step: 9,   sharp: false, clef: 'treble' },
+    { note: 'F5',  label: 'Фа',   oct: '2-я',  freq: 698.46, type: 'white', step: 10,  sharp: false, clef: 'treble' },
+    { note: 'F#5', label: 'Фа#',  oct: '',     freq: 739.99, type: 'black', step: 10,  sharp: true,  clef: 'treble' },
+    { note: 'G5',  label: 'Соль', oct: '2-я',  freq: 783.99, type: 'white', step: 11,  sharp: false, clef: 'treble' },
+    { note: 'G#5', label: 'Соль#',oct: '',     freq: 830.61, type: 'black', step: 11,  sharp: true,  clef: 'treble' },
+    { note: 'A5',  label: 'Ля',   oct: '2-я',  freq: 880.00, type: 'white', step: 12,  sharp: false, clef: 'treble' },
+    { note: 'A#5', label: 'Ля#',  oct: '',     freq: 932.33, type: 'black', step: 12,  sharp: true,  clef: 'treble' },
+    { note: 'B5',  label: 'Си',   oct: '2-я',  freq: 987.77, type: 'white', step: 13,  sharp: false, clef: 'treble' }
+  ];
+
+  // Настройки видимого диапазона
+  // Индекс октавы: 0 = Большая, 1 = Малая, 2 = Первая, 3 = Вторая
+  let startOctave = 2; // По умолчанию открывается 1-я и 2-я октава
+  let visibleOctaves = 2; // 2 или 3 октавы на экране
+
+  const octaveNames = ['Большая', 'Малая', '1-я', '2-я'];
+
+  function createStaffSVG(step, sharp, clef, isBlackKey) {
+    const strokeColor = isBlackKey ? '#d0d0d8' : '#222228';
+    const noteColor = isBlackKey ? '#ffd166' : '#d90429';
+    const lineSpacing = 5.5;
+    const halfStep = lineSpacing / 2;
+    const bottomLineY = 46;
+    let noteY = bottomLineY;
+    let ledgerLines = [];
+
+    if (clef === 'treble') {
+      noteY = bottomLineY - (step - 2) * halfStep;
+      if (step <= 0) ledgerLines.push(bottomLineY + lineSpacing);
+      if (step >= 12) ledgerLines.push(bottomLineY - lineSpacing * 5);
+    } else {
+      noteY = bottomLineY - (step - (-10)) * halfStep;
+      if (step <= -12) ledgerLines.push(bottomLineY + lineSpacing);
+      if (step <= -14) ledgerLines.push(bottomLineY + lineSpacing * 2);
+      if (step >= 0) ledgerLines.push(bottomLineY - lineSpacing * 5);
+    }
+
+    let linesSvg = '';
+    for (let i = 0; i < 5; i++) {
+      const y = bottomLineY - i * lineSpacing;
+      linesSvg += `<line x1="2" y1="${y}" x2="36" y2="${y}" stroke="${strokeColor}" stroke-width="0.9" opacity="0.65" />`;
+    }
+
+    let ledgersSvg = '';
+    ledgerLines.forEach(ly => {
+      ledgersSvg += `<line x1="16" y1="${ly}" x2="30" y2="${ly}" stroke="${strokeColor}" stroke-width="1.1" />`;
+    });
+
+    let clefSvg = '';
+    if (clef === 'treble') {
+      clefSvg = `
+        <path d="M9 47 C6 47 5 44 7 42 C9 40 12 42 11 45 C10 49 5 48 5 42 C5 35 12 31 12 24 C12 20 10 18 9 20 C8 22 8 30 9 48 C9 52 7 53 6 51" 
+              fill="none" stroke="${strokeColor}" stroke-width="1.3" stroke-linecap="round"/>
+      `;
+    } else {
+      clefSvg = `
+        <path d="M5 29 C5 25 11 24 12 29 C13 34 8 39 4 42" 
+              fill="none" stroke="${strokeColor}" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="5.5" cy="29" r="1.4" fill="${strokeColor}" />
+        <circle cx="14.5" cy="27" r="1.1" fill="${strokeColor}" />
+        <circle cx="14.5" cy="32.5" r="1.1" fill="${strokeColor}" />
+      `;
+    }
+
+    const sharpSvg = sharp
+      ? `<g stroke="${noteColor}" stroke-width="1.1">
+           <line x1="14.5" y1="${noteY - 5}" x2="14.5" y2="${noteY + 5}" />
+           <line x1="17" y1="${noteY - 5.5}" x2="17" y2="${noteY + 4.5}" />
+           <line x1="13" y1="${noteY - 1.5}" x2="18.5" y2="${noteY - 2.5}" />
+           <line x1="13" y1="${noteY + 2}" x2="18.5" y2="${noteY + 1}" />
+         </g>`
+      : '';
+
+    const stemUp = (clef === 'treble' && step < 6) || (clef === 'bass' && step < -6);
+    const stemSvg = stemUp
+      ? `<line x1="26" y1="${noteY}" x2="26" y2="${noteY - 14}" stroke="${noteColor}" stroke-width="1.3" />`
+      : `<line x1="20.5" y1="${noteY}" x2="20.5" y2="${noteY + 14}" stroke="${noteColor}" stroke-width="1.3" />`;
+
+    return `
+      <svg width="38" height="62" viewBox="0 0 38 62">
+        ${linesSvg}
+        ${clefSvg}
+        ${ledgersSvg}
+        ${sharpSvg}
+        <ellipse cx="23.2" cy="${noteY}" rx="3.4" ry="2.4" transform="rotate(-15 23.2 ${noteY})" fill="${noteColor}" />
+        ${stemSvg}
+      </svg>
+    `;
+  }
+
+  // Звуковой движок (реалистичный синтез пианино с мягким затуханием)
+  const activeNotes = new Map(); // pointerId -> { osc, gain, keyEl }
+
+  function startNote(pointerId, keyEl) {
+    initAudio();
+    if (!keyEl || keyEl.dataset.pointer === String(pointerId)) return;
+
+    // Если этот палец уже держал другую клавишу (глиссандо), отпускаем старую
+    stopNote(pointerId);
+
+    const freq = parseFloat(keyEl.dataset.freq);
+    const now = audioCtx.currentTime;
+
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+
+    osc.type = document.getElementById('waveType').value;
+    osc.frequency.setValueAtTime(freq, now);
+
+    // Быстрая атака + естественное затухание даже при удержании пальца
+    gainNode.gain.setValueAtTime(0.005, now);
+    gainNode.gain.linearRampToValueAtTime(0.35, now + 0.015);
+    gainNode.gain.exponentialRampToValueAtTime(0.08, now + 1.8);
+
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    osc.start(now);
+
+    keyEl.classList.add('active');
+    activeNotes.set(pointerId, { osc, gainNode, keyEl });
+  }
+
+  function stopNote(pointerId) {
+    const active = activeNotes.get(pointerId);
+    if (!active) return;
+
+    const { osc, gainNode, keyEl } = active;
+    const now = audioCtx.currentTime;
+
+    // Плавный релиз при отпускании пальца (без щелчка)
+    gainNode.gain.cancelScheduledValues(now);
+    gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+
+    setTimeout(() => {
+      try { osc.stop(); osc.disconnect(); } catch (e) {}
+    }, 260);
+
+    activeNotes.delete(pointerId);
+
+    // Снимаем подсветку только если другой палец не держит эту же клавишу
+    let stillHeld = false;
+    for (const item of activeNotes.values()) {
+      if (item.keyEl === keyEl) {
+        stillHeld = true;
+        break;
+      }
+    }
+    if (!stillHeld) {
+      keyEl.classList.remove('active');
+    }
+  }
+
+  // Отрисовка клавиатуры с точным позиционированием чёрных клавиш в процентах
+  const pianoEl = document.getElementById('piano');
+  const rangeLabel = document.getElementById('rangeLabel');
+
+  function renderPiano() {
+    pianoEl.innerHTML = '';
+
+    const startIndex = startOctave * 12;
+    const endIndex = Math.min(allNotes.length, (startOctave + visibleOctaves) * 12);
+    const slice = allNotes.slice(startIndex, endIndex);
+
+    const endOctaveName = octaveNames[startOctave + visibleOctaves - 1];
+    rangeLabel.textContent = `${octaveNames[startOctave]} – ${endOctaveName}`;
+
+    // Считаем количество белых клавиш для идеальной сетки
+    const whiteNotes = slice.filter(n => n.type === 'white');
+    const whiteCount = whiteNotes.length;
+    const whiteWidthPct = 100 / whiteCount;
+    const blackWidthPct = whiteWidthPct * 0.62;
+
+    let whiteIndex = 0;
+
+    slice.forEach(item => {
+      const keyDiv = document.createElement('div');
+      keyDiv.className = `key ${item.type}`;
+      keyDiv.dataset.freq = item.freq;
+      keyDiv.dataset.note = item.note;
+
+      const staffSvg = createStaffSVG(item.step, item.sharp, item.clef, item.type === 'black');
+
+      if (item.type === 'white') {
+        keyDiv.innerHTML = `
+          <div class="staff-box">${staffSvg}</div>
+          <span class="note-name">${item.label}</span>
+          <span class="octave-tag">${item.oct}</span>
+        `;
+        pianoEl.appendChild(keyDiv);
+        whiteIndex++;
+      } else {
+        // Чёрная клавиша ставится ровно на стык предыдущей и следующей белой
+        const leftPct = (whiteIndex * whiteWidthPct) - (blackWidthPct / 2);
+        keyDiv.style.width = `${blackWidthPct}%`;
+        keyDiv.style.left = `${leftPct}%`;
+        keyDiv.innerHTML = `
+          <div class="staff-box">${staffSvg}</div>
+          <span class="note-name">${item.label}</span>
+        `;
+        pianoEl.appendChild(keyDiv);
+      }
+    });
+  }
+
+  // Глобальный мультитач через Pointer Events (поддержка 10 пальцев и глиссандо)
+  pianoEl.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const keyEl = e.target.closest('.key');
+    if (keyEl) {
+      startNote(e.pointerId, keyEl);
+    }
+  });
+
+  pianoEl.addEventListener('pointermove', (e) => {
+    if (!activeNotes.has(e.pointerId)) return;
+    e.preventDefault();
+    const elUnderFinger = document.elementFromPoint(e.clientX, e.clientY);
+    const keyEl = elUnderFinger ? elUnderFinger.closest('.key') : null;
+    const current = activeNotes.get(e.pointerId);
+
+    if (keyEl && current && current.keyEl !== keyEl) {
+      startNote(e.pointerId, keyEl);
+    } else if (!keyEl) {
+      stopNote(e.pointerId);
+    }
+  });
+
+  const endHandler = (e) => {
+    stopNote(e.pointerId);
+  };
+
+  pianoEl.addEventListener('pointerup', endHandler);
+  pianoEl.addEventListener('pointercancel', endHandler);
+  window.addEventListener('pointerup', endHandler);
+
+  // Кнопки управления диапазоном и масштабом
+  document.getElementById('shiftLeft').addEventListener('click', () => {
+    if (startOctave > 0) {
+      startOctave--;
+      renderPiano();
+    }
+  });
+
+  document.getElementById('shiftRight').addEventListener('click', () => {
+    if (startOctave + visibleOctaves < 4) {
+      startOctave++;
+      renderPiano();
+    }
+  });
+
+  const spanBtn = document.getElementById('spanToggle');
+  spanBtn.addEventListener('click', () => {
+    if (visibleOctaves === 2) {
+      visibleOctaves = 3;
+      if (startOctave > 1) startOctave = 1;
+      spanBtn.textContent = 'Масштаб: 3 октавы';
+    } else {
+      visibleOctaves = 2;
+      spanBtn.textContent = 'Масштаб: 2 октавы';
+    }
+    renderPiano();
+  });
+
+  // Полноэкранный режим для Android-планшета
+  document.getElementById('fullscreenBtn').addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+  });
+
+  renderPiano();
+</script>
+</body>
+</html>
